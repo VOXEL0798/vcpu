@@ -1,0 +1,9 @@
+{
+    "compilerOptions": {
+        "types": [
+            "typed-factorio/runtime"
+        ],
+        "rootDir": "src",
+        "outDir": "./build"
+    }
+}

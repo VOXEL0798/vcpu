@@ -1,0 +1,11 @@
+{
+    "name": "jsxtest",
+    "version": "0.0.1",
+    "title": "jsxtest scripts",
+    "author": "voxelll",
+    "description": "Experement with ts to lua",
+    "factorio_version": "2.0",
+    "dependencies": [
+        "base>=2.0.0"
+    ]
+}
