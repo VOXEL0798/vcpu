@@ -35,7 +35,11 @@ export enum INST {
     BVC = 0x50,
     BVS = 0x70,
 
-    CLC = 0x18
+    CLC = 0x18,
+    CLV = 0xB8,
+    CLD = 0xD8,
+
+    STA_ZP = 0x85,
 }
 
 export class Flags {
@@ -110,7 +114,11 @@ export class CPU {
             return
         }
         let cmd = this.fetch_byte()
+
         switch (cmd) {
+            case 0xFF: {
+                game.print(this.memory.get(0xf1) + " " + this.memory.get(0xf2))
+            } break;
             case INST.LDA_IM: {
                 let data = this.fetch_byte()
                 this.a = data
@@ -157,13 +165,37 @@ export class CPU {
                 this.a = ByteArray.read_byte(sum, 0)
                 this.flags.Z = this.a == 0
                 this.flags.N = (this.a & 0x80) != 0
-                game.print(this.a)
+            } break;
 
+            case INST.ADC_IM: {
+                let value = this.fetch_byte()
+                let carry = this.flags.C ? 1 : 0
+                let sum = (this.a + value + carry) & 0xFFFF
+                this.flags.C = sum > 0xFF
+                let overflow = (ByteArray.read_byte(this.a ^ sum, 0) & ByteArray.read_byte(value ^ sum, 0)) != 0
+                //this.flags.V = overflow
+                this.flags.V = sum > 255
+                this.a = ByteArray.read_byte(sum, 0)
+                this.flags.Z = this.a == 0
+                this.flags.N = (this.a & 0x80) != 0
             } break;
 
             case INST.BCC: {
                 if (!this.flags.C) {
-                    this.pc = this.fetch_word()
+                    this.pc = this.fetch_word() + 1
+                }
+            } break;
+
+            case INST.BVS: {
+                if (this.flags.V) {
+                    this.pc = this.fetch_word() + 1
+                }
+            } break;
+
+
+            case INST.BVC: {
+                if (!this.flags.V) {
+                    this.pc = this.fetch_word() + 1
                 }
             } break;
 
@@ -179,9 +211,7 @@ export class CPU {
                 this.a = ByteArray.read_byte(sum, 0)
                 this.flags.Z = this.a == 0
                 this.flags.N = (this.a & 0x80) != 0
-                game.print(this.a)
             } break;
-
 
             case INST.ADC_IM: {
                 let value = this.fetch_byte()
@@ -197,8 +227,43 @@ export class CPU {
                 this.flags.N = (this.a & 0x80) != 0
             } break;
 
-            case 0x4: {
-                this.a = ByteArray.read_byte(this.a + this.fetch_byte(), 0)
+            case INST.LDA_IM: {
+                this.a = this.fetch_byte()
+                this.flags.N = (this.a & 0x80) != 0
+                this.flags.Z = this.a == 0
+            } break;
+
+            case INST.LDA_ZP: {
+                this.a = this.fetch_byte()
+                this.a = this.read_byte(this.a)
+                this.flags.N = (this.a & 0x80) != 0
+                this.flags.Z = this.a == 0
+            } break;
+
+            case INST.INX_IMP: {
+                this.x = ByteArray.read_byte(this.x + 1, 0)
+                this.flags.N = (this.x & 0x80) != 0
+                this.flags.Z = this.x == 0
+            } break;
+
+            case INST.INY_IMP: {
+                this.y = ByteArray.read_byte(this.y + 1, 0)
+                this.flags.N = (this.y & 0x80) != 0
+                this.flags.Z = this.y == 0
+            } break;
+
+            case INST.CLV: {
+                this.flags.V = false
+            } break;
+
+            case INST.CLD: {
+                this.flags.B = false
+                this.flags.C = false
+                this.flags.D = false
+            } break;
+
+            case INST.STA_ZP: {
+                this.memory.set(this.fetch_byte(), this.a)
             } break;
 
             default:

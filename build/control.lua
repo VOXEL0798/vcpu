@@ -3,7 +3,6 @@ local __TS__New = ____lualib.__TS__New
 local ____exports = {}
 local ____cpu = require("cpu")
 local CPU = ____cpu.CPU
-local INST = ____cpu.INST
 script.on_event(
     defines.events.on_player_created,
     function()
@@ -24,17 +23,41 @@ script.on_event(
     end
 )
 local cpu = __TS__New(CPU, {
-    INST.ADC_ZP,
-    5,
-    INST.JMP_ABS,
+    165,
+    241,
+    105,
+    1,
+    133,
+    241,
+    255,
+    80,
     0,
     0,
-    5
+    216,
+    184,
+    165,
+    242,
+    105,
+    1,
+    133,
+    242,
+    216,
+    184,
+    255,
+    76,
+    0,
+    0
 })
 script.on_event(
     defines.events.on_tick,
     function()
-        cpu:step()
+        do
+            local index = 0
+            while index < 150 do
+                cpu:step()
+                index = index + 1
+            end
+        end
     end
 )
 script.on_event(

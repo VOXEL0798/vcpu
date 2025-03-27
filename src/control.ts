@@ -40,10 +40,29 @@ script.on_event(defines.events.on_player_created, () => {
     tb.style.height = (20 * 20) + 8
     frame.add({ type: "checkbox", name: "cpu-execute", state: false })
 })
+//0xf1, 0xf2
 
-let cpu = new CPU([INST.ADC_ZP, 5, INST.JMP_ABS, 0x0, 0x0, 0x5]);
+let cpu = new CPU([
+    0xA5, 0xF1,
+    0x69, 0x1,
+    0x85, 0xF1,
+    0xFF,
+    0x50, 0x0, 0x0,
+    0xD8,
+    0xB8,
+    0xA5, 0xF2,
+    0x69, 0x1,
+    0x85, 0xF2,
+    0xD8,
+    0xB8,
+    0xFF,
+    0x4C, 0x0, 0x0,
+]);
+
 script.on_event(defines.events.on_tick, () => {
-    cpu.step()
+    for (let index = 0; index < 150; index++) {
+        cpu.step()
+    }
 })
 
 script.on_event(defines.events.on_gui_click, (data) => {

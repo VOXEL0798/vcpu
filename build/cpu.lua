@@ -63,6 +63,12 @@ ____exports.INST.BVS = 112
 ____exports.INST[____exports.INST.BVS] = "BVS"
 ____exports.INST.CLC = 24
 ____exports.INST[____exports.INST.CLC] = "CLC"
+____exports.INST.CLV = 184
+____exports.INST[____exports.INST.CLV] = "CLV"
+____exports.INST.CLD = 216
+____exports.INST[____exports.INST.CLD] = "CLD"
+____exports.INST.STA_ZP = 133
+____exports.INST[____exports.INST.STA_ZP] = "STA_ZP"
 ____exports.Flags = __TS__Class()
 local Flags = ____exports.Flags
 Flags.name = "Flags"
@@ -116,7 +122,14 @@ function CPU.prototype.step(self)
     local cmd = self:fetch_byte()
     repeat
         local ____switch11 = cmd
-        local ____cond11 = ____switch11 == ____exports.INST.LDA_IM
+        local ____cond11 = ____switch11 == 255
+        if ____cond11 then
+            do
+                game.print((tostring(self.memory:get(241)) .. " ") .. tostring(self.memory:get(242)))
+            end
+            break
+        end
+        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.LDA_IM
         if ____cond11 then
             do
                 local data = self:fetch_byte()
@@ -190,7 +203,30 @@ function CPU.prototype.step(self)
                 self.a = ByteArray:read_byte(sum, 0)
                 self.flags.Z = self.a == 0
                 self.flags.N = bit32.band(self.a, 128) ~= 0
-                game.print(self.a)
+            end
+            break
+        end
+        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.ADC_IM
+        if ____cond11 then
+            do
+                local value = self:fetch_byte()
+                local carry = self.flags.C and 1 or 0
+                local sum = bit32.band(self.a + value + carry, 65535)
+                self.flags.C = sum > 255
+                local overflow = bit32.band(
+                    ByteArray:read_byte(
+                        bit32.bxor(self.a, sum),
+                        0
+                    ),
+                    ByteArray:read_byte(
+                        bit32.bxor(value, sum),
+                        0
+                    )
+                ) ~= 0
+                self.flags.V = sum > 255
+                self.a = ByteArray:read_byte(sum, 0)
+                self.flags.Z = self.a == 0
+                self.flags.N = bit32.band(self.a, 128) ~= 0
             end
             break
         end
@@ -198,7 +234,25 @@ function CPU.prototype.step(self)
         if ____cond11 then
             do
                 if not self.flags.C then
-                    self.pc = self:fetch_word()
+                    self.pc = self:fetch_word() + 1
+                end
+            end
+            break
+        end
+        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.BVS
+        if ____cond11 then
+            do
+                if self.flags.V then
+                    self.pc = self:fetch_word() + 1
+                end
+            end
+            break
+        end
+        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.BVC
+        if ____cond11 then
+            do
+                if not self.flags.V then
+                    self.pc = self:fetch_word() + 1
                 end
             end
             break
@@ -225,7 +279,6 @@ function CPU.prototype.step(self)
                 self.a = ByteArray:read_byte(sum, 0)
                 self.flags.Z = self.a == 0
                 self.flags.N = bit32.band(self.a, 128) ~= 0
-                game.print(self.a)
             end
             break
         end
@@ -253,12 +306,65 @@ function CPU.prototype.step(self)
             end
             break
         end
-        ____cond11 = ____cond11 or ____switch11 == 4
+        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.LDA_IM
         if ____cond11 then
             do
-                self.a = ByteArray:read_byte(
-                    self.a + self:fetch_byte(),
-                    0
+                self.a = self:fetch_byte()
+                self.flags.N = bit32.band(self.a, 128) ~= 0
+                self.flags.Z = self.a == 0
+            end
+            break
+        end
+        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.LDA_ZP
+        if ____cond11 then
+            do
+                self.a = self:fetch_byte()
+                self.a = self:read_byte(self.a)
+                self.flags.N = bit32.band(self.a, 128) ~= 0
+                self.flags.Z = self.a == 0
+            end
+            break
+        end
+        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.INX_IMP
+        if ____cond11 then
+            do
+                self.x = ByteArray:read_byte(self.x + 1, 0)
+                self.flags.N = bit32.band(self.x, 128) ~= 0
+                self.flags.Z = self.x == 0
+            end
+            break
+        end
+        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.INY_IMP
+        if ____cond11 then
+            do
+                self.y = ByteArray:read_byte(self.y + 1, 0)
+                self.flags.N = bit32.band(self.y, 128) ~= 0
+                self.flags.Z = self.y == 0
+            end
+            break
+        end
+        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.CLV
+        if ____cond11 then
+            do
+                self.flags.V = false
+            end
+            break
+        end
+        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.CLD
+        if ____cond11 then
+            do
+                self.flags.B = false
+                self.flags.C = false
+                self.flags.D = false
+            end
+            break
+        end
+        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.STA_ZP
+        if ____cond11 then
+            do
+                self.memory:set(
+                    self:fetch_byte(),
+                    self.a
                 )
             end
             break
