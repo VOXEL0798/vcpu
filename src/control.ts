@@ -68,6 +68,54 @@ class ByteArray {
     }
 }
 
+
+enum INST {
+    LDA_IM = 0xA9,
+    LDA_ZP = 0xA5,
+    LDA_ZPX = 0xB5,
+    LDA_ABS = 0xAD,
+    LDA_ABSX = 0xBD,
+    LDA_ABSY = 0xB9,
+
+    DEC_ZP = 0xC6,
+    DEC_ZPX = 0xD6,
+    DEC_ABS = 0xCE,
+    DEC_ABSX = 0xDE,
+
+    INX_IMP = 0xE8,
+    INY_IMP = 0xC8,
+
+    JMP_ABS = 0x4C,
+    JMP_IND = 0x6C,
+
+    ADC_IM = 0x69,
+    ADC_ZP = 0x65,
+    ADC_ZPX = 0x75,
+    ADC_ABS = 0x6D,
+    ADC_ABSX = 0x7D,
+    ADC_ABSY = 0x79,
+}
+
+class Flags {
+    N: boolean
+    V: boolean
+    B: boolean
+    D: boolean
+    I: boolean
+    Z: boolean
+    C: boolean
+
+    constructor() {
+        this.N = false
+        this.V = false
+        this.B = false
+        this.D = false
+        this.I = false
+        this.Z = false
+        this.C = false
+    }
+}
+
 class CPU {
     active: boolean
 
@@ -80,10 +128,12 @@ class CPU {
     y: number
 
     memory: ByteArray
+    flags: Flags
 
     constructor(program: Array<number>) {
         this.active = false
         this.memory = new ByteArray()
+        this.flags = new Flags()
         this.pc = 0
         this.sp = 0xFFFF
         this.bp = 0xFFFF - 0xFF
@@ -97,7 +147,18 @@ class CPU {
     }
 
     push(data: number) {
+        this.memory.set(this.sp, data)
+        if (this.sp > this.bp) {
+            this.sp--
+        }
+    }
 
+    pop(): number {
+        let value = this.memory.get(this.sp)
+        if (this.sp < 0xFFFF) {
+            this.sp++
+        }
+        return value
     }
 
     step() {
@@ -106,18 +167,86 @@ class CPU {
         }
         let cmd = this.fetch_byte()
         switch (cmd) {
-            case 0x1:
-                this.a = ByteArray.read_byte(this.a + 1, 0)
+            case INST.LDA_IM:
+                let data = this.fetch_byte()
+                this.a = data
+                this.flags.N = (data & 0b10000000) > 0
+                this.flags.Z = data == 0
                 break;
-            case 0x2:
-                game.print(this.a)
+
+            case INST.INX_IMP:
+                this.x = ByteArray.read_byte(this.x + 1, 0)
+                this.flags.N = (this.x & 0b10000000) > 0
                 break;
-            case 0x3:
-                this.pc = 0;
+
+            case INST.INY_IMP:
+                this.y = ByteArray.read_byte(this.y + 1, 0)
+                this.flags.N = (this.y & 0b10000000) > 0
                 break;
+
+            case INST.JMP_ABS:
+                this.pc = this.fetch_word()
+                break;
+
+            case INST.JMP_IND:
+                let addr = this.fetch_word()
+                this.pc = this.read_word(addr)
+                break;
+
+            case INST.ADC_ZP:
+                {
+                    let value = this.fetch_byte()
+                    value = this.read_byte(value)
+                    let carry = this.flags.C ? 1 : 0
+                    let sum = (this.a + value + carry) & 0xFFFF
+                    this.flags.C = sum > 0xFF
+
+                    let overflow = (ByteArray.read_byte(this.a ^ sum, 0) & ByteArray.read_byte(value ^ sum, 0)) != 0
+                    this.flags.V = overflow
+                    this.a = ByteArray.read_byte(sum, 0)
+                    this.flags.Z = this.a == 0
+                    this.flags.N = (this.a & 0x80) != 0
+                    game.print(this.a)
+                }
+                break;
+
+            case INST.ADC_ZPX:
+                {
+                    let value = this.fetch_byte()
+                    value = (this.read_byte(value) + this.x)
+                    let carry = this.flags.C ? 1 : 0
+                    let sum = (this.a + value + carry) & 0xFFFF
+
+                    this.flags.C = sum > 0xFF00
+                    let overflow = (ByteArray.read_byte(this.a ^ sum, 0) & ByteArray.read_byte(value ^ sum, 0)) != 0
+                    this.flags.V = overflow
+                    this.a = ByteArray.read_byte(sum, 0)
+                    this.flags.Z = this.a == 0
+                    this.flags.N = (this.a & 0x80) != 0
+                    game.print(this.a)
+                }
+                break;
+
+            case INST.ADC_IM:
+                {
+                    let value = this.fetch_byte()
+                    let carry = this.flags.C ? 1 : 0
+                    let sum = this.a + value + carry
+
+                    this.flags.C = sum > 0xFF
+
+                    let overflow = (ByteArray.read_byte(this.a ^ sum, 0) & ByteArray.read_byte(value ^ sum, 0)) != 0
+                    this.flags.V = overflow
+                    this.a = ByteArray.read_byte(sum, 0)
+                    this.flags.Z = this.a == 0
+                    this.flags.N = (this.a & 0x80) != 0
+                }
+                break;
+
             case 0x4:
                 this.a = ByteArray.read_byte(this.a + this.fetch_byte(), 0)
                 break;
+
             default:
                 break;
         }
@@ -189,25 +318,21 @@ script.on_event(defines.events.on_player_created, () => {
     frame.add({ type: "button", name: "cpu-execute" })
 })
 
-let cpu = new CPU([0x4, 5, 0x2, 0x3]);
+let cpu = new CPU([INST.ADC_ZP, 5, INST.JMP_ABS, 0x0, 0x0, 0xF1]);
 script.on_event(defines.events.on_tick, () => {
     cpu.step()
     //game.print(0b1001 & 0b1100)
 })
 
 script.on_event(defines.events.on_gui_click, (data) => {
-    game.print("click!")
     if (data.element.name != "cpu-execute") { return }
     let exec = data.element
     cpu.active = !cpu.active
-    //
-    //    if (type(exec.state) == "boolean") {
-    //  }
 })
-
+/*
 script.on_event(defines.events.on_gui_click, (data) => {
     if (data.element.name != "cpu-close-window") { return }
     data.element.parent.parent.destroy()
 })
 
-
+*/
