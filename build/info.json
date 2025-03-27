@@ -1,9 +1,9 @@
 {
-    "name": "jsxtest",
+    "name": "vcpu",
     "version": "0.0.1",
-    "title": "jsxtest scripts",
+    "title": "cpu emulator",
     "author": "voxelll",
-    "description": "Experement with ts to lua",
+    "description": "virtual cpu emulator MOS6502 like",
     "factorio_version": "2.0",
     "dependencies": [
         "base>=2.0.0"
