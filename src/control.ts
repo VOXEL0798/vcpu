@@ -42,7 +42,6 @@ script.on_event(defines.events.on_player_created, () => {
 })
 
 let CODE = [
-    INST.STA_ZP,
 ]
 
 let CODE2 = [

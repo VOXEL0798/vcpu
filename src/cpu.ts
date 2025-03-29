@@ -24,6 +24,7 @@ export enum INST {
 
     JMP_ABS = 0x4C,
     JMP_IND = 0x6C,
+    JSR_ABS = 0x20,
 
     ADC_IM = 0x69,
     ADC_ZP = 0x65,
@@ -53,6 +54,8 @@ export enum INST {
     TXA_IMP = 0x8A,
     TXS_IMP = 0x9A,
     TYA_IMP = 0x98,
+
+    RTS_IMP = 0x60,
 }
 
 export class Flags {
@@ -195,55 +198,48 @@ export class CPU {
             }
 
             case INST.INX_IMP: {
-                this.x = ByteArray.read_byte(this.x + 1, 0)
-                this.flags.N = (this.x & 0b10000000) > 0
-                this.flags.Z = this.x == 0
+                this.x = (this.x + 1) & 0xFF
+                this.set_NZ_status(this.x)
             } break;
 
             case INST.INY_IMP: {
-                this.y = ByteArray.read_byte(this.y + 1, 0)
-                this.flags.N = (this.y & 0b10000000) > 0
-                this.flags.Z = this.y == 0
+                this.y = (this.y + 1) & 0xFF
+                this.set_NZ_status(this.y)
             } break;
 
             case INST.INC_ZP: {
                 let addr_zp = this.fetch_byte()
                 let byte = this.read_byte(addr_zp)
                 this.memory.set(addr_zp, (byte + 1) & 0xFF)
-                this.flags.N = (byte & 0b10000000) > 0
-                this.flags.Z = byte == 0
+                this.set_NZ_status(this.memory.get(addr_zp))
             } break;
 
             case INST.INC_ZPX: {
                 let addr_zp = this.fetch_byte()
                 let byte = this.read_byte((addr_zp + this.x) & 0xFF)
                 this.memory.set(addr_zp, (byte + 1) & 0xFF)
-                this.flags.N = (byte & 0b10000000) > 0
-                this.flags.Z = byte == 0
+                this.set_NZ_status(this.memory.get(addr_zp))
             } break;
 
             case INST.INC_ABS: {
                 let addr = this.fetch_word()
                 let byte = this.read_byte(addr)
                 this.memory.set(addr, (byte + 1) & 0xFF)
-                this.flags.N = (byte & 0b10000000) > 0
-                this.flags.Z = byte == 0
+                this.set_NZ_status(this.memory.get(addr))
             } break;
 
             case INST.INC_ABSX: {
                 let addr = this.fetch_word()
                 let byte = this.read_byte(addr + this.x)
                 this.memory.set(addr, (byte + 1) & 0xFF)
-                this.flags.N = (byte & 0b10000000) > 0
-                this.flags.Z = byte == 0
+                this.set_NZ_status(this.memory.get(addr))
             } break;
 
             case INST.DEC_ZP: {
                 let addr_zp = this.fetch_byte()
                 let byte = this.read_byte(addr_zp)
                 this.memory.set(addr_zp, (byte - 1) & 0xFF)
-                this.flags.N = (byte & 0b10000000) > 0
-                this.flags.Z = byte == 0
+                this.set_NZ_status(this.memory.get(addr_zp))
             } break;
 
 
@@ -251,8 +247,7 @@ export class CPU {
                 let addr_zp = this.fetch_byte()
                 let byte = this.read_byte((addr_zp + this.x) & 0xFF)
                 this.memory.set(addr_zp, (byte - 1) & 0xFF)
-                this.flags.N = (byte & 0b10000000) > 0
-                this.flags.Z = byte == 0
+                this.set_NZ_status(this.memory.get(addr_zp))
             } break;
 
 
@@ -260,8 +255,7 @@ export class CPU {
                 let addr = this.fetch_word()
                 let byte = this.read_byte(addr)
                 this.memory.set(addr, (byte - 1) & 0xFF)
-                this.flags.N = (byte & 0b10000000) > 0
-                this.flags.Z = byte == 0
+                this.set_NZ_status(this.memory.get(addr))
             } break;
 
 
@@ -269,8 +263,7 @@ export class CPU {
                 let addr = this.fetch_word()
                 let byte = this.read_byte(addr + this.x)
                 this.memory.set(addr, (byte - 1) & 0xFF)
-                this.flags.N = (byte & 0b10000000) > 0
-                this.flags.Z = byte == 0
+                this.set_NZ_status(this.memory.get(addr))
             } break;
 
             case INST.JMP_ABS: {
@@ -279,6 +272,12 @@ export class CPU {
 
             case INST.JMP_IND: {
                 let addr = this.fetch_word()
+                this.pc = this.read_word(addr)
+            } break;
+
+            case INST.JSR_ABS: {
+                let addr = this.fetch_word()
+                this.push(this.pc)
                 this.pc = this.read_word(addr)
             } break;
 
@@ -292,8 +291,7 @@ export class CPU {
                 let overflow = (ByteArray.read_byte(this.a ^ sum, 0) & ByteArray.read_byte(value ^ sum, 0)) != 0
                 this.flags.V = overflow
                 this.a = sum & 0xFF
-                this.flags.Z = this.a == 0
-                this.flags.N = (this.a & 0x80) != 0
+                this.set_NZ_status(this.a)
             } break;
 
             case INST.ADC_IM: {
@@ -305,12 +303,29 @@ export class CPU {
                 //this.flags.V = overflow
                 this.flags.V = sum > 255
                 this.a = sum & 0xFF
-                this.flags.Z = this.a == 0
-                this.flags.N = (this.a & 0x80) != 0
+                this.set_NZ_status(this.a)
             } break;
 
             case INST.BCC: {
                 if (!this.flags.C) {
+                    this.pc = this.fetch_word() + 1
+                }
+            } break;
+
+            case INST.BCS: {
+                if (this.flags.C) {
+                    this.pc = this.fetch_word() + 1
+                }
+            } break;
+
+            case INST.BEQ: {
+                if (this.flags.Z) {
+                    this.pc = this.fetch_word() + 1
+                }
+            } break;
+
+            case INST.BMI: {
+                if (this.flags.N) {
                     this.pc = this.fetch_word() + 1
                 }
             } break;
@@ -333,6 +348,12 @@ export class CPU {
                 }
             } break;
 
+            case INST.BPL: {
+                if (!this.flags.N) {
+                    this.pc = this.fetch_word() + 1
+                }
+            } break;
+
             case INST.ADC_ZPX: {
                 let value = this.fetch_byte()
                 value = (this.read_byte(value) + this.x)
@@ -343,8 +364,7 @@ export class CPU {
                 let overflow = (ByteArray.read_byte(this.a ^ sum, 0) & ByteArray.read_byte(value ^ sum, 0)) != 0
                 this.flags.V = overflow
                 this.a = sum & 0xFF
-                this.flags.Z = this.a == 0
-                this.flags.N = (this.a & 0x80) != 0
+                this.set_NZ_status(this.a)
             } break;
 
             case INST.ADC_IM: {
@@ -356,20 +376,17 @@ export class CPU {
                 let overflow = (ByteArray.read_byte(this.a ^ sum, 0) & ByteArray.read_byte(value ^ sum, 0)) != 0
                 this.flags.V = overflow
                 this.a = sum & 0xFF
-                this.flags.Z = this.a == 0
-                this.flags.N = (this.a & 0x80) != 0
+                this.set_NZ_status(this.a)
             } break;
 
             case INST.INX_IMP: {
                 this.x = (this.x + 1) & 0xFF
-                this.flags.N = (this.x & 0x80) != 0
-                this.flags.Z = this.x == 0
+                this.set_NZ_status(this.x)
             } break;
 
             case INST.INY_IMP: {
                 this.y = (this.y + 1) & 0xFF
-                this.flags.N = (this.y & 0x80) != 0
-                this.flags.Z = this.y == 0
+                this.set_NZ_status(this.y)
             } break;
 
             case INST.CLV: {
@@ -406,6 +423,10 @@ export class CPU {
                 this.set_NZ_status(this.x)
             } break;
 
+            case INST.RTS_IMP: {
+                this.pc = this.pop()
+            } break;
+
             default:
                 break;
         }
@@ -427,17 +448,6 @@ export class CPU {
     fetch_word(): number {
         this.pc += 2
         return (this.memory.get(this.pc - 2) | this.memory.get(this.pc - 1)) & 0xFFFF
-    }
-
-    static tests() {
-        {
-
-        }
-    }
-
-    static inst_add() {
-        let tb = CPU.INST_TABLE
-
     }
 
     static INST_TABLE: {}

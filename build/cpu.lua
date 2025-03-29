@@ -45,6 +45,8 @@ ____exports.INST.JMP_ABS = 76
 ____exports.INST[____exports.INST.JMP_ABS] = "JMP_ABS"
 ____exports.INST.JMP_IND = 108
 ____exports.INST[____exports.INST.JMP_IND] = "JMP_IND"
+____exports.INST.JSR_ABS = 32
+____exports.INST[____exports.INST.JSR_ABS] = "JSR_ABS"
 ____exports.INST.ADC_IM = 105
 ____exports.INST[____exports.INST.ADC_IM] = "ADC_IM"
 ____exports.INST.ADC_ZP = 101
@@ -89,6 +91,12 @@ ____exports.INST.TSX_IMP = 186
 ____exports.INST[____exports.INST.TSX_IMP] = "TSX_IMP"
 ____exports.INST.TXA_IMP = 138
 ____exports.INST[____exports.INST.TXA_IMP] = "TXA_IMP"
+____exports.INST.TXS_IMP = 154
+____exports.INST[____exports.INST.TXS_IMP] = "TXS_IMP"
+____exports.INST.TYA_IMP = 152
+____exports.INST[____exports.INST.TYA_IMP] = "TYA_IMP"
+____exports.INST.RTS_IMP = 96
+____exports.INST[____exports.INST.RTS_IMP] = "RTS_IMP"
 ____exports.Flags = __TS__Class()
 local Flags = ____exports.Flags
 Flags.name = "Flags"
@@ -135,7 +143,7 @@ function CPU.prototype.pop(self)
     end
     return value
 end
-function CPU.prototype.set_lda_status(self, register)
+function CPU.prototype.set_NZ_status(self, register)
     self.flags.N = bit32.band(register, 128) > 0
     self.flags.Z = register == 0
 end
@@ -164,7 +172,7 @@ function CPU.prototype.step(self)
             do
                 local data = self:fetch_byte()
                 self.a = data
-                self:set_lda_status(self.a)
+                self:set_NZ_status(self.a)
             end
             break
         end
@@ -173,7 +181,7 @@ function CPU.prototype.step(self)
             do
                 local data = self:fetch_byte()
                 self.a = self:read_byte(data)
-                self:set_lda_status(self.a)
+                self:set_NZ_status(self.a)
             end
             break
         end
@@ -182,7 +190,7 @@ function CPU.prototype.step(self)
             do
                 local data = self:fetch_byte()
                 self.a = self:read_byte(bit32.band(data + self.x, 255))
-                self:set_lda_status(self.a)
+                self:set_NZ_status(self.a)
             end
             break
         end
@@ -191,7 +199,7 @@ function CPU.prototype.step(self)
             do
                 local data = self:fetch_word()
                 self.a = self:read_byte(data)
-                self:set_lda_status(self.a)
+                self:set_NZ_status(self.a)
             end
             break
         end
@@ -200,7 +208,7 @@ function CPU.prototype.step(self)
             do
                 local data = self:fetch_word()
                 self.a = self:read_byte(bit32.band(data + self.x, 255))
-                self:set_lda_status(self.a)
+                self:set_NZ_status(self.a)
             end
             break
         end
@@ -209,7 +217,7 @@ function CPU.prototype.step(self)
             do
                 local data = self:fetch_word()
                 self.a = self:read_byte(data + self.y)
-                self:set_lda_status(self.a)
+                self:set_NZ_status(self.a)
             end
             break
         end
@@ -225,7 +233,7 @@ function CPU.prototype.step(self)
                     low
                 )
                 self.a = self:read_byte(target_addr)
-                self:set_lda_status(self.a)
+                self:set_NZ_status(self.a)
                 break
             end
         end
@@ -241,25 +249,23 @@ function CPU.prototype.step(self)
                 )
                 local target_addr = base_addr + self.y
                 self.a = self:read_byte(target_addr)
-                self:set_lda_status(self.a)
+                self:set_NZ_status(self.a)
                 break
             end
         end
         ____cond12 = ____cond12 or ____switch12 == ____exports.INST.INX_IMP
         if ____cond12 then
             do
-                self.x = ByteArray:read_byte(self.x + 1, 0)
-                self.flags.N = bit32.band(self.x, 128) > 0
-                self.flags.Z = self.x == 0
+                self.x = bit32.band(self.x + 1, 255)
+                self:set_NZ_status(self.x)
             end
             break
         end
         ____cond12 = ____cond12 or ____switch12 == ____exports.INST.INY_IMP
         if ____cond12 then
             do
-                self.y = ByteArray:read_byte(self.y + 1, 0)
-                self.flags.N = bit32.band(self.y, 128) > 0
-                self.flags.Z = self.y == 0
+                self.y = bit32.band(self.y + 1, 255)
+                self:set_NZ_status(self.y)
             end
             break
         end
@@ -272,8 +278,7 @@ function CPU.prototype.step(self)
                     addr_zp,
                     bit32.band(byte + 1, 255)
                 )
-                self.flags.N = bit32.band(byte, 128) > 0
-                self.flags.Z = byte == 0
+                self:set_NZ_status(self.memory:get(addr_zp))
             end
             break
         end
@@ -286,8 +291,7 @@ function CPU.prototype.step(self)
                     addr_zp,
                     bit32.band(byte + 1, 255)
                 )
-                self.flags.N = bit32.band(byte, 128) > 0
-                self.flags.Z = byte == 0
+                self:set_NZ_status(self.memory:get(addr_zp))
             end
             break
         end
@@ -300,8 +304,7 @@ function CPU.prototype.step(self)
                     addr,
                     bit32.band(byte + 1, 255)
                 )
-                self.flags.N = bit32.band(byte, 128) > 0
-                self.flags.Z = byte == 0
+                self:set_NZ_status(self.memory:get(addr))
             end
             break
         end
@@ -314,8 +317,7 @@ function CPU.prototype.step(self)
                     addr,
                     bit32.band(byte + 1, 255)
                 )
-                self.flags.N = bit32.band(byte, 128) > 0
-                self.flags.Z = byte == 0
+                self:set_NZ_status(self.memory:get(addr))
             end
             break
         end
@@ -328,8 +330,7 @@ function CPU.prototype.step(self)
                     addr_zp,
                     bit32.band(byte - 1, 255)
                 )
-                self.flags.N = bit32.band(byte, 128) > 0
-                self.flags.Z = byte == 0
+                self:set_NZ_status(self.memory:get(addr_zp))
             end
             break
         end
@@ -342,8 +343,7 @@ function CPU.prototype.step(self)
                     addr_zp,
                     bit32.band(byte - 1, 255)
                 )
-                self.flags.N = bit32.band(byte, 128) > 0
-                self.flags.Z = byte == 0
+                self:set_NZ_status(self.memory:get(addr_zp))
             end
             break
         end
@@ -356,8 +356,7 @@ function CPU.prototype.step(self)
                     addr,
                     bit32.band(byte - 1, 255)
                 )
-                self.flags.N = bit32.band(byte, 128) > 0
-                self.flags.Z = byte == 0
+                self:set_NZ_status(self.memory:get(addr))
             end
             break
         end
@@ -370,8 +369,7 @@ function CPU.prototype.step(self)
                     addr,
                     bit32.band(byte - 1, 255)
                 )
-                self.flags.N = bit32.band(byte, 128) > 0
-                self.flags.Z = byte == 0
+                self:set_NZ_status(self.memory:get(addr))
             end
             break
         end
@@ -386,6 +384,15 @@ function CPU.prototype.step(self)
         if ____cond12 then
             do
                 local addr = self:fetch_word()
+                self.pc = self:read_word(addr)
+            end
+            break
+        end
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.JSR_ABS
+        if ____cond12 then
+            do
+                local addr = self:fetch_word()
+                self:push(self.pc)
                 self.pc = self:read_word(addr)
             end
             break
@@ -410,8 +417,7 @@ function CPU.prototype.step(self)
                 ) ~= 0
                 self.flags.V = overflow
                 self.a = bit32.band(sum, 255)
-                self.flags.Z = self.a == 0
-                self.flags.N = bit32.band(self.a, 128) ~= 0
+                self:set_NZ_status(self.a)
             end
             break
         end
@@ -434,8 +440,7 @@ function CPU.prototype.step(self)
                 ) ~= 0
                 self.flags.V = sum > 255
                 self.a = bit32.band(sum, 255)
-                self.flags.Z = self.a == 0
-                self.flags.N = bit32.band(self.a, 128) ~= 0
+                self:set_NZ_status(self.a)
             end
             break
         end
@@ -443,6 +448,33 @@ function CPU.prototype.step(self)
         if ____cond12 then
             do
                 if not self.flags.C then
+                    self.pc = self:fetch_word() + 1
+                end
+            end
+            break
+        end
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.BCS
+        if ____cond12 then
+            do
+                if self.flags.C then
+                    self.pc = self:fetch_word() + 1
+                end
+            end
+            break
+        end
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.BEQ
+        if ____cond12 then
+            do
+                if self.flags.Z then
+                    self.pc = self:fetch_word() + 1
+                end
+            end
+            break
+        end
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.BMI
+        if ____cond12 then
+            do
+                if self.flags.N then
                     self.pc = self:fetch_word() + 1
                 end
             end
@@ -475,6 +507,15 @@ function CPU.prototype.step(self)
             end
             break
         end
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.BPL
+        if ____cond12 then
+            do
+                if not self.flags.N then
+                    self.pc = self:fetch_word() + 1
+                end
+            end
+            break
+        end
         ____cond12 = ____cond12 or ____switch12 == ____exports.INST.ADC_ZPX
         if ____cond12 then
             do
@@ -495,8 +536,7 @@ function CPU.prototype.step(self)
                 ) ~= 0
                 self.flags.V = overflow
                 self.a = bit32.band(sum, 255)
-                self.flags.Z = self.a == 0
-                self.flags.N = bit32.band(self.a, 128) ~= 0
+                self:set_NZ_status(self.a)
             end
             break
         end
@@ -519,8 +559,7 @@ function CPU.prototype.step(self)
                 ) ~= 0
                 self.flags.V = overflow
                 self.a = bit32.band(sum, 255)
-                self.flags.Z = self.a == 0
-                self.flags.N = bit32.band(self.a, 128) ~= 0
+                self:set_NZ_status(self.a)
             end
             break
         end
@@ -528,8 +567,7 @@ function CPU.prototype.step(self)
         if ____cond12 then
             do
                 self.x = bit32.band(self.x + 1, 255)
-                self.flags.N = bit32.band(self.x, 128) ~= 0
-                self.flags.Z = self.x == 0
+                self:set_NZ_status(self.x)
             end
             break
         end
@@ -537,8 +575,7 @@ function CPU.prototype.step(self)
         if ____cond12 then
             do
                 self.y = bit32.band(self.y + 1, 255)
-                self.flags.N = bit32.band(self.y, 128) ~= 0
-                self.flags.Z = self.y == 0
+                self:set_NZ_status(self.y)
             end
             break
         end
@@ -565,6 +602,45 @@ function CPU.prototype.step(self)
                     self:fetch_byte(),
                     self.a
                 )
+            end
+            break
+        end
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.TAX_IMP
+        if ____cond12 then
+            do
+                self.x = self.a
+                self:set_NZ_status(self.x)
+            end
+            break
+        end
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.TAY_IMP
+        if ____cond12 then
+            do
+                self.y = self.a
+                self:set_NZ_status(self.y)
+            end
+            break
+        end
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.TSX_IMP
+        if ____cond12 then
+            do
+                self.x = self.sp
+                self:set_NZ_status(self.x)
+            end
+            break
+        end
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.TXA_IMP
+        if ____cond12 then
+            do
+                self.x = self.sp
+                self:set_NZ_status(self.x)
+            end
+            break
+        end
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.RTS_IMP
+        if ____cond12 then
+            do
+                self.pc = self:pop()
             end
             break
         end
@@ -598,12 +674,5 @@ function CPU.prototype.fetch_word(self)
         ),
         65535
     )
-end
-function CPU.tests(self)
-    do
-    end
-end
-function CPU.inst_add(self)
-    local tb = ____exports.CPU.INST_TABLE
 end
 return ____exports
