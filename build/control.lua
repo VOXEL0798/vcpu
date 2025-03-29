@@ -3,6 +3,7 @@ local __TS__New = ____lualib.__TS__New
 local ____exports = {}
 local ____cpu = require("cpu")
 local CPU = ____cpu.CPU
+local INST = ____cpu.INST
 script.on_event(
     defines.events.on_player_created,
     function()
@@ -22,11 +23,12 @@ script.on_event(
         frame.add({type = "checkbox", name = "cpu-execute", state = false})
     end
 )
-local cpu = __TS__New(CPU, {
+local CODE = {INST.STA_ZP}
+local CODE2 = {
     165,
     241,
     105,
-    4,
+    64,
     133,
     241,
     255,
@@ -47,7 +49,8 @@ local cpu = __TS__New(CPU, {
     76,
     0,
     0
-})
+}
+local cpu = __TS__New(CPU, CODE2)
 script.on_event(
     defines.events.on_tick,
     function()
@@ -57,11 +60,24 @@ script.on_event(
 script.on_event(
     defines.events.on_gui_click,
     function(data)
-        if data.element.name ~= "cpu-execute" then
-            return
-        end
-        local exec = data.element
-        cpu.active = exec.state
+        repeat
+            local ____switch5 = data.element.name
+            local ____cond5 = ____switch5 == "cpu-execute"
+            if ____cond5 then
+                do
+                    local exec = data.element
+                    cpu.active = exec.state
+                end
+                break
+            end
+            ____cond5 = ____cond5 or ____switch5 == "cpu-close-window"
+            if ____cond5 then
+                do
+                    data.element.parent.parent.destroy()
+                end
+                break
+            end
+        until true
     end
 )
 return ____exports

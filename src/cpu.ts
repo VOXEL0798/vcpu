@@ -17,6 +17,10 @@ export enum INST {
 
     INX_IMP = 0xE8,
     INY_IMP = 0xC8,
+    INC_ZP = 0xE6,
+    INC_ZPX = 0xF6,
+    INC_ABS = 0xEE,
+    INC_ABSX = 0xFE,
 
     JMP_ABS = 0x4C,
     JMP_IND = 0x6C,
@@ -42,6 +46,13 @@ export enum INST {
     CLD = 0xD8,
 
     STA_ZP = 0x85,
+
+    TAX_IMP = 0xAA,
+    TAY_IMP = 0xA8,
+    TSX_IMP = 0xBA,
+    TXA_IMP = 0x8A,
+    TXS_IMP = 0x9A,
+    TYA_IMP = 0x98,
 }
 
 export class Flags {
@@ -63,8 +74,6 @@ export class Flags {
         this.C = false
     }
 }
-
-
 
 export class CPU {
     active: boolean
@@ -111,7 +120,7 @@ export class CPU {
         return value
     }
 
-    set_lda_status(register: number) {
+    set_NZ_status(register: number) {
         this.flags.N = (register & 0b10000000) > 0
         this.flags.Z = register == 0
     }
@@ -122,45 +131,45 @@ export class CPU {
         }
         let cmd = this.fetch_byte()
 
+        game.print(this.memory.get(0xf1) | this.memory.get(0xf2) << 8)
         switch (cmd) {
             case 0xFF: {
-                game.print(this.memory.get(0xf1) | this.memory.get(0xf2) << 8)
             } break;
 
             case INST.LDA_IM: {
                 let data = this.fetch_byte()
                 this.a = data
-                this.set_lda_status(this.a)
+                this.set_NZ_status(this.a)
             } break;
 
             case INST.LDA_ZP: {
                 let data = this.fetch_byte()
                 this.a = this.read_byte(data)
-                this.set_lda_status(this.a)
+                this.set_NZ_status(this.a)
             } break;
 
             case INST.LDA_ZPX: {
                 let data = this.fetch_byte()
                 this.a = this.read_byte((data + this.x) & 0xFF)
-                this.set_lda_status(this.a)
+                this.set_NZ_status(this.a)
             } break;
 
             case INST.LDA_ABS: {
                 let data = this.fetch_word()
                 this.a = this.read_byte(data)
-                this.set_lda_status(this.a)
+                this.set_NZ_status(this.a)
             } break;
 
             case INST.LDA_ABSX: {
                 let data = this.fetch_word()
                 this.a = this.read_byte((data + this.x) & 0xFF)
-                this.set_lda_status(this.a)
+                this.set_NZ_status(this.a)
             } break;
 
             case INST.LDA_ABSY: {
                 let data = this.fetch_word()
-                this.a = this.read_byte((data + this.y) & 0xFF)
-                this.set_lda_status(this.a)
+                this.a = this.read_byte(data + this.y)
+                this.set_NZ_status(this.a)
             } break;
 
             case INST.LDA_INDX: {
@@ -170,7 +179,7 @@ export class CPU {
                 const high = this.read_byte((eff_addr + 1) & 0xFF);  // Читаем старший байт
                 const target_addr = (high << 8) | low;  // Формируем 16-битный адрес
                 this.a = this.read_byte(target_addr);  // Загружаем значение в A
-                this.set_lda_status(this.a);  // Устанавливаем флаги
+                this.set_NZ_status(this.a);  // Устанавливаем флаги
                 break;
             }
 
@@ -181,18 +190,87 @@ export class CPU {
                 const base_addr = (high << 8) | low;
                 const target_addr = base_addr + this.y;
                 this.a = this.read_byte(target_addr);
-                this.set_lda_status(this.a);
+                this.set_NZ_status(this.a);
                 break;
             }
 
             case INST.INX_IMP: {
                 this.x = ByteArray.read_byte(this.x + 1, 0)
                 this.flags.N = (this.x & 0b10000000) > 0
+                this.flags.Z = this.x == 0
             } break;
 
             case INST.INY_IMP: {
                 this.y = ByteArray.read_byte(this.y + 1, 0)
                 this.flags.N = (this.y & 0b10000000) > 0
+                this.flags.Z = this.y == 0
+            } break;
+
+            case INST.INC_ZP: {
+                let addr_zp = this.fetch_byte()
+                let byte = this.read_byte(addr_zp)
+                this.memory.set(addr_zp, (byte + 1) & 0xFF)
+                this.flags.N = (byte & 0b10000000) > 0
+                this.flags.Z = byte == 0
+            } break;
+
+            case INST.INC_ZPX: {
+                let addr_zp = this.fetch_byte()
+                let byte = this.read_byte((addr_zp + this.x) & 0xFF)
+                this.memory.set(addr_zp, (byte + 1) & 0xFF)
+                this.flags.N = (byte & 0b10000000) > 0
+                this.flags.Z = byte == 0
+            } break;
+
+            case INST.INC_ABS: {
+                let addr = this.fetch_word()
+                let byte = this.read_byte(addr)
+                this.memory.set(addr, (byte + 1) & 0xFF)
+                this.flags.N = (byte & 0b10000000) > 0
+                this.flags.Z = byte == 0
+            } break;
+
+            case INST.INC_ABSX: {
+                let addr = this.fetch_word()
+                let byte = this.read_byte(addr + this.x)
+                this.memory.set(addr, (byte + 1) & 0xFF)
+                this.flags.N = (byte & 0b10000000) > 0
+                this.flags.Z = byte == 0
+            } break;
+
+            case INST.DEC_ZP: {
+                let addr_zp = this.fetch_byte()
+                let byte = this.read_byte(addr_zp)
+                this.memory.set(addr_zp, (byte - 1) & 0xFF)
+                this.flags.N = (byte & 0b10000000) > 0
+                this.flags.Z = byte == 0
+            } break;
+
+
+            case INST.DEC_ZPX: {
+                let addr_zp = this.fetch_byte()
+                let byte = this.read_byte((addr_zp + this.x) & 0xFF)
+                this.memory.set(addr_zp, (byte - 1) & 0xFF)
+                this.flags.N = (byte & 0b10000000) > 0
+                this.flags.Z = byte == 0
+            } break;
+
+
+            case INST.DEC_ABS: {
+                let addr = this.fetch_word()
+                let byte = this.read_byte(addr)
+                this.memory.set(addr, (byte - 1) & 0xFF)
+                this.flags.N = (byte & 0b10000000) > 0
+                this.flags.Z = byte == 0
+            } break;
+
+
+            case INST.DEC_ABSX: {
+                let addr = this.fetch_word()
+                let byte = this.read_byte(addr + this.x)
+                this.memory.set(addr, (byte - 1) & 0xFF)
+                this.flags.N = (byte & 0b10000000) > 0
+                this.flags.Z = byte == 0
             } break;
 
             case INST.JMP_ABS: {
@@ -213,7 +291,7 @@ export class CPU {
 
                 let overflow = (ByteArray.read_byte(this.a ^ sum, 0) & ByteArray.read_byte(value ^ sum, 0)) != 0
                 this.flags.V = overflow
-                this.a = ByteArray.read_byte(sum, 0)
+                this.a = sum & 0xFF
                 this.flags.Z = this.a == 0
                 this.flags.N = (this.a & 0x80) != 0
             } break;
@@ -226,7 +304,7 @@ export class CPU {
                 let overflow = (ByteArray.read_byte(this.a ^ sum, 0) & ByteArray.read_byte(value ^ sum, 0)) != 0
                 //this.flags.V = overflow
                 this.flags.V = sum > 255
-                this.a = ByteArray.read_byte(sum, 0)
+                this.a = sum & 0xFF
                 this.flags.Z = this.a == 0
                 this.flags.N = (this.a & 0x80) != 0
             } break;
@@ -245,6 +323,12 @@ export class CPU {
 
             case INST.BVC: {
                 if (!this.flags.V) {
+                    this.pc = this.fetch_word() + 1
+                }
+            } break;
+
+            case INST.BNE: {
+                if (!this.flags.Z) {
                     this.pc = this.fetch_word() + 1
                 }
             } break;
@@ -300,6 +384,26 @@ export class CPU {
 
             case INST.STA_ZP: {
                 this.memory.set(this.fetch_byte(), this.a)
+            } break;
+
+            case INST.TAX_IMP: {
+                this.x = this.a
+                this.set_NZ_status(this.x)
+            } break;
+
+            case INST.TAY_IMP: {
+                this.y = this.a
+                this.set_NZ_status(this.y)
+            } break;
+
+            case INST.TSX_IMP: {
+                this.x = this.sp
+                this.set_NZ_status(this.x)
+            } break;
+
+            case INST.TXA_IMP: {
+                this.x = this.sp
+                this.set_NZ_status(this.x)
             } break;
 
             default:

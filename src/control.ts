@@ -41,9 +41,13 @@ script.on_event(defines.events.on_player_created, () => {
     frame.add({ type: "checkbox", name: "cpu-execute", state: false })
 })
 
-let cpu = new CPU([
+let CODE = [
+    INST.STA_ZP,
+]
+
+let CODE2 = [
     0xA5, 0xF1,
-    0x69, 0x04,
+    0x69, 0x40,
     0x85, 0xF1,
     0xFF,
     0x50, 0x0, 0x0,
@@ -56,24 +60,32 @@ let cpu = new CPU([
     0xB8,
     0xFF,
     0x4C, 0x0, 0x0,
-]);
+
+]
+let cpu = new CPU(CODE2);
 
 script.on_event(defines.events.on_tick, () => {
     cpu.step()
     //Object.keys(INST).forEach(element => {
-    //game.print(INST[element])
+    //    game.print(INST[element])
     //});
 })
 
 script.on_event(defines.events.on_gui_click, (data) => {
-    if (data.element.name != "cpu-execute") { return }
-    let exec = data.element
-    cpu.active = exec.state as boolean
+    switch (data.element.name) {
+        case "cpu-execute": {
+            let exec = data.element
+            cpu.active = exec.state as boolean
+        } break;
+
+        case "cpu-close-window": {
+            data.element.parent.parent.destroy()
+        } break;
+    }
 })
 /*
 script.on_event(defines.events.on_gui_click, (data) => {
     if (data.element.name != "cpu-close-window") { return }
-    data.element.parent.parent.destroy()
 })
 
 */
