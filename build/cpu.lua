@@ -115,74 +115,116 @@ function CPU.prototype.pop(self)
     end
     return value
 end
+function CPU.prototype.set_lda_status(self)
+    self.flags.N = bit32.band(self.a, 128) > 0
+    self.flags.Z = self.a == 0
+end
 function CPU.prototype.step(self)
     if self.active == false then
         return
     end
     local cmd = self:fetch_byte()
     repeat
-        local ____switch11 = cmd
-        local ____cond11 = ____switch11 == 255
-        if ____cond11 then
+        local ____switch12 = cmd
+        local ____cond12 = ____switch12 == 255
+        if ____cond12 then
             do
-                game.print((tostring(self.memory:get(241)) .. " ") .. tostring(self.memory:get(242)))
+                game.print(bit32.bor(
+                    self.memory:get(241),
+                    bit32.lshift(
+                        self.memory:get(242),
+                        8
+                    )
+                ))
             end
             break
         end
-        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.LDA_IM
-        if ____cond11 then
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.LDA_IM
+        if ____cond12 then
             do
                 local data = self:fetch_byte()
                 self.a = data
-                self.flags.N = bit32.band(data, 128) > 0
-                self.flags.Z = data == 0
+                self:set_lda_status()
             end
             break
         end
-        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.LDA_ZP
-        if ____cond11 then
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.LDA_ZP
+        if ____cond12 then
             do
                 local data = self:fetch_byte()
-                data = self:read_byte(data)
-                self.a = data
-                self.flags.N = bit32.band(data, 128) > 0
-                self.flags.Z = data == 0
+                self.a = self:read_byte(data)
+                self:set_lda_status()
             end
             break
         end
-        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.INX_IMP
-        if ____cond11 then
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.LDA_ZPX
+        if ____cond12 then
+            do
+                local data = self:fetch_byte()
+                self.a = self:read_byte(bit32.band(data + self.x, 255))
+                self:set_lda_status()
+            end
+            break
+        end
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.LDA_ABS
+        if ____cond12 then
+            do
+                local data = self:fetch_word()
+                self.a = self:read_byte(data)
+                self:set_lda_status()
+            end
+            break
+        end
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.LDA_IM
+        if ____cond12 then
+            do
+                self.a = self:fetch_byte()
+                self:set_lda_status()
+            end
+            break
+        end
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.LDA_ZP
+        if ____cond12 then
+            do
+                self.a = self:fetch_byte()
+                self.a = self:read_byte(self.a)
+                self:set_lda_status()
+            end
+            break
+        end
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.INX_IMP
+        if ____cond12 then
             do
                 self.x = ByteArray:read_byte(self.x + 1, 0)
                 self.flags.N = bit32.band(self.x, 128) > 0
             end
             break
         end
-        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.INY_IMP
-        if ____cond11 then
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.INY_IMP
+        if ____cond12 then
             do
                 self.y = ByteArray:read_byte(self.y + 1, 0)
                 self.flags.N = bit32.band(self.y, 128) > 0
             end
             break
         end
-        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.JMP_ABS
-        if ____cond11 then
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.JMP_ABS
+        if ____cond12 then
             do
                 self.pc = self:fetch_word()
             end
             break
         end
-        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.JMP_IND
-        if ____cond11 then
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.JMP_IND
+        if ____cond12 then
             do
                 local addr = self:fetch_word()
                 self.pc = self:read_word(addr)
             end
             break
         end
-        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.ADC_ZP
-        if ____cond11 then
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.ADC_ZP
+        if ____cond12 then
             do
                 local value = self:fetch_byte()
                 value = self:read_byte(value)
@@ -206,8 +248,8 @@ function CPU.prototype.step(self)
             end
             break
         end
-        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.ADC_IM
-        if ____cond11 then
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.ADC_IM
+        if ____cond12 then
             do
                 local value = self:fetch_byte()
                 local carry = self.flags.C and 1 or 0
@@ -230,8 +272,8 @@ function CPU.prototype.step(self)
             end
             break
         end
-        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.BCC
-        if ____cond11 then
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.BCC
+        if ____cond12 then
             do
                 if not self.flags.C then
                     self.pc = self:fetch_word() + 1
@@ -239,8 +281,8 @@ function CPU.prototype.step(self)
             end
             break
         end
-        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.BVS
-        if ____cond11 then
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.BVS
+        if ____cond12 then
             do
                 if self.flags.V then
                     self.pc = self:fetch_word() + 1
@@ -248,8 +290,8 @@ function CPU.prototype.step(self)
             end
             break
         end
-        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.BVC
-        if ____cond11 then
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.BVC
+        if ____cond12 then
             do
                 if not self.flags.V then
                     self.pc = self:fetch_word() + 1
@@ -257,8 +299,8 @@ function CPU.prototype.step(self)
             end
             break
         end
-        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.ADC_ZPX
-        if ____cond11 then
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.ADC_ZPX
+        if ____cond12 then
             do
                 local value = self:fetch_byte()
                 value = self:read_byte(value) + self.x
@@ -276,14 +318,14 @@ function CPU.prototype.step(self)
                     )
                 ) ~= 0
                 self.flags.V = overflow
-                self.a = ByteArray:read_byte(sum, 0)
+                self.a = bit32.band(sum, 255)
                 self.flags.Z = self.a == 0
                 self.flags.N = bit32.band(self.a, 128) ~= 0
             end
             break
         end
-        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.ADC_IM
-        if ____cond11 then
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.ADC_IM
+        if ____cond12 then
             do
                 local value = self:fetch_byte()
                 local carry = self.flags.C and 1 or 0
@@ -300,58 +342,39 @@ function CPU.prototype.step(self)
                     )
                 ) ~= 0
                 self.flags.V = overflow
-                self.a = ByteArray:read_byte(sum, 0)
+                self.a = bit32.band(sum, 255)
                 self.flags.Z = self.a == 0
                 self.flags.N = bit32.band(self.a, 128) ~= 0
             end
             break
         end
-        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.LDA_IM
-        if ____cond11 then
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.INX_IMP
+        if ____cond12 then
             do
-                self.a = self:fetch_byte()
-                self.flags.N = bit32.band(self.a, 128) ~= 0
-                self.flags.Z = self.a == 0
-            end
-            break
-        end
-        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.LDA_ZP
-        if ____cond11 then
-            do
-                self.a = self:fetch_byte()
-                self.a = self:read_byte(self.a)
-                self.flags.N = bit32.band(self.a, 128) ~= 0
-                self.flags.Z = self.a == 0
-            end
-            break
-        end
-        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.INX_IMP
-        if ____cond11 then
-            do
-                self.x = ByteArray:read_byte(self.x + 1, 0)
+                self.x = bit32.band(self.x + 1, 255)
                 self.flags.N = bit32.band(self.x, 128) ~= 0
                 self.flags.Z = self.x == 0
             end
             break
         end
-        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.INY_IMP
-        if ____cond11 then
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.INY_IMP
+        if ____cond12 then
             do
-                self.y = ByteArray:read_byte(self.y + 1, 0)
+                self.y = bit32.band(self.y + 1, 255)
                 self.flags.N = bit32.band(self.y, 128) ~= 0
                 self.flags.Z = self.y == 0
             end
             break
         end
-        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.CLV
-        if ____cond11 then
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.CLV
+        if ____cond12 then
             do
                 self.flags.V = false
             end
             break
         end
-        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.CLD
-        if ____cond11 then
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.CLD
+        if ____cond12 then
             do
                 self.flags.B = false
                 self.flags.C = false
@@ -359,8 +382,8 @@ function CPU.prototype.step(self)
             end
             break
         end
-        ____cond11 = ____cond11 or ____switch11 == ____exports.INST.STA_ZP
-        if ____cond11 then
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.STA_ZP
+        if ____cond12 then
             do
                 self.memory:set(
                     self:fetch_byte(),

@@ -40,11 +40,10 @@ script.on_event(defines.events.on_player_created, () => {
     tb.style.height = (20 * 20) + 8
     frame.add({ type: "checkbox", name: "cpu-execute", state: false })
 })
-//0xf1, 0xf2
 
 let cpu = new CPU([
     0xA5, 0xF1,
-    0x69, 0x1,
+    0x69, 0x04,
     0x85, 0xF1,
     0xFF,
     0x50, 0x0, 0x0,
@@ -60,9 +59,10 @@ let cpu = new CPU([
 ]);
 
 script.on_event(defines.events.on_tick, () => {
-    for (let index = 0; index < 150; index++) {
-        cpu.step()
-    }
+    cpu.step()
+    //Object.keys(INST).forEach(element => {
+    //game.print(INST[element])
+    //});
 })
 
 script.on_event(defines.events.on_gui_click, (data) => {

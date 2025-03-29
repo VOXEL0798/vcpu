@@ -26,7 +26,7 @@ local cpu = __TS__New(CPU, {
     165,
     241,
     105,
-    1,
+    4,
     133,
     241,
     255,
@@ -51,13 +51,7 @@ local cpu = __TS__New(CPU, {
 script.on_event(
     defines.events.on_tick,
     function()
-        do
-            local index = 0
-            while index < 150 do
-                cpu:step()
-                index = index + 1
-            end
-        end
+        cpu:step()
     end
 )
 script.on_event(

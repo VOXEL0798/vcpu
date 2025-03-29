@@ -7,6 +7,8 @@ export enum INST {
     LDA_ABS = 0xAD,
     LDA_ABSX = 0xBD,
     LDA_ABSY = 0xB9,
+    LDA_INDX = 0xA1,
+    LDA_INDY = 0xB1,
 
     DEC_ZP = 0xC6,
     DEC_ZPX = 0xD6,
@@ -109,6 +111,11 @@ export class CPU {
         return value
     }
 
+    set_lda_status(register: number) {
+        this.flags.N = (register & 0b10000000) > 0
+        this.flags.Z = register == 0
+    }
+
     step() {
         if (this.active == false) {
             return
@@ -117,22 +124,66 @@ export class CPU {
 
         switch (cmd) {
             case 0xFF: {
-                game.print(this.memory.get(0xf1) + " " + this.memory.get(0xf2))
+                game.print(this.memory.get(0xf1) | this.memory.get(0xf2) << 8)
             } break;
+
             case INST.LDA_IM: {
                 let data = this.fetch_byte()
                 this.a = data
-                this.flags.N = (data & 0b10000000) > 0
-                this.flags.Z = data == 0
+                this.set_lda_status(this.a)
             } break;
 
             case INST.LDA_ZP: {
                 let data = this.fetch_byte()
-                data = this.read_byte(data)
-                this.a = data
-                this.flags.N = (data & 0b10000000) > 0
-                this.flags.Z = data == 0
+                this.a = this.read_byte(data)
+                this.set_lda_status(this.a)
             } break;
+
+            case INST.LDA_ZPX: {
+                let data = this.fetch_byte()
+                this.a = this.read_byte((data + this.x) & 0xFF)
+                this.set_lda_status(this.a)
+            } break;
+
+            case INST.LDA_ABS: {
+                let data = this.fetch_word()
+                this.a = this.read_byte(data)
+                this.set_lda_status(this.a)
+            } break;
+
+            case INST.LDA_ABSX: {
+                let data = this.fetch_word()
+                this.a = this.read_byte((data + this.x) & 0xFF)
+                this.set_lda_status(this.a)
+            } break;
+
+            case INST.LDA_ABSY: {
+                let data = this.fetch_word()
+                this.a = this.read_byte((data + this.y) & 0xFF)
+                this.set_lda_status(this.a)
+            } break;
+
+            case INST.LDA_INDX: {
+                const zp_addr = this.fetch_byte();  // Читаем адрес zero page (например, $20)
+                const eff_addr = (zp_addr + this.x) & 0xFF;  // Добавляем X (с обрезкой)
+                const low = this.read_byte(eff_addr);  // Читаем младший байт адреса
+                const high = this.read_byte((eff_addr + 1) & 0xFF);  // Читаем старший байт
+                const target_addr = (high << 8) | low;  // Формируем 16-битный адрес
+                this.a = this.read_byte(target_addr);  // Загружаем значение в A
+                this.set_lda_status(this.a);  // Устанавливаем флаги
+                break;
+            }
+
+            case INST.LDA_INDY: {
+                const zp_addr = this.fetch_byte();
+                const low = this.read_byte(zp_addr);
+                const high = this.read_byte((zp_addr + 1) & 0xFF);
+                const base_addr = (high << 8) | low;
+                const target_addr = base_addr + this.y;
+                this.a = this.read_byte(target_addr);
+                this.set_lda_status(this.a);
+                break;
+            }
 
             case INST.INX_IMP: {
                 this.x = ByteArray.read_byte(this.x + 1, 0)
@@ -192,7 +243,6 @@ export class CPU {
                 }
             } break;
 
-
             case INST.BVC: {
                 if (!this.flags.V) {
                     this.pc = this.fetch_word() + 1
@@ -205,10 +255,10 @@ export class CPU {
                 let carry = this.flags.C ? 1 : 0
                 let sum = (this.a + value + carry) & 0xFFFF
 
-                this.flags.C = sum > 0xFF00
+                this.flags.C = sum > 0xFF
                 let overflow = (ByteArray.read_byte(this.a ^ sum, 0) & ByteArray.read_byte(value ^ sum, 0)) != 0
                 this.flags.V = overflow
-                this.a = ByteArray.read_byte(sum, 0)
+                this.a = sum & 0xFF
                 this.flags.Z = this.a == 0
                 this.flags.N = (this.a & 0x80) != 0
             } break;
@@ -219,35 +269,21 @@ export class CPU {
                 let sum = this.a + value + carry
 
                 this.flags.C = sum > 0xFF
-
                 let overflow = (ByteArray.read_byte(this.a ^ sum, 0) & ByteArray.read_byte(value ^ sum, 0)) != 0
                 this.flags.V = overflow
-                this.a = ByteArray.read_byte(sum, 0)
+                this.a = sum & 0xFF
                 this.flags.Z = this.a == 0
                 this.flags.N = (this.a & 0x80) != 0
-            } break;
-
-            case INST.LDA_IM: {
-                this.a = this.fetch_byte()
-                this.flags.N = (this.a & 0x80) != 0
-                this.flags.Z = this.a == 0
-            } break;
-
-            case INST.LDA_ZP: {
-                this.a = this.fetch_byte()
-                this.a = this.read_byte(this.a)
-                this.flags.N = (this.a & 0x80) != 0
-                this.flags.Z = this.a == 0
             } break;
 
             case INST.INX_IMP: {
-                this.x = ByteArray.read_byte(this.x + 1, 0)
+                this.x = (this.x + 1) & 0xFF
                 this.flags.N = (this.x & 0x80) != 0
                 this.flags.Z = this.x == 0
             } break;
 
             case INST.INY_IMP: {
-                this.y = ByteArray.read_byte(this.y + 1, 0)
+                this.y = (this.y + 1) & 0xFF
                 this.flags.N = (this.y & 0x80) != 0
                 this.flags.Z = this.y == 0
             } break;
