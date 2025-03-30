@@ -56,6 +56,11 @@ export enum INST {
     TYA_IMP = 0x98,
 
     RTS_IMP = 0x60,
+
+    PHA_IMP = 0x48,
+    PHP_IMP = 0x08,
+    PLA_IMP = 0x68,
+    PLP_IMP = 0x28,
 }
 
 export class Flags {
@@ -287,7 +292,6 @@ export class CPU {
                 let carry = this.flags.C ? 1 : 0
                 let sum = (this.a + value + carry) & 0xFFFF
                 this.flags.C = sum > 0xFF
-
                 let overflow = (ByteArray.read_byte(this.a ^ sum, 0) & ByteArray.read_byte(value ^ sum, 0)) != 0
                 this.flags.V = overflow
                 this.a = sum & 0xFF
@@ -425,6 +429,15 @@ export class CPU {
 
             case INST.RTS_IMP: {
                 this.pc = this.pop()
+            } break;
+
+            case INST.PLA_IMP: {
+                this.a = this.pop()
+                this.set_NZ_status(this.a)
+            } break;
+
+            case INST.PHA_IMP: {
+                this.push(this.a)
             } break;
 
             default:

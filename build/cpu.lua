@@ -97,6 +97,14 @@ ____exports.INST.TYA_IMP = 152
 ____exports.INST[____exports.INST.TYA_IMP] = "TYA_IMP"
 ____exports.INST.RTS_IMP = 96
 ____exports.INST[____exports.INST.RTS_IMP] = "RTS_IMP"
+____exports.INST.PHA_IMP = 72
+____exports.INST[____exports.INST.PHA_IMP] = "PHA_IMP"
+____exports.INST.PHP_IMP = 8
+____exports.INST[____exports.INST.PHP_IMP] = "PHP_IMP"
+____exports.INST.PLA_IMP = 104
+____exports.INST[____exports.INST.PLA_IMP] = "PLA_IMP"
+____exports.INST.PLP_IMP = 40
+____exports.INST[____exports.INST.PLP_IMP] = "PLP_IMP"
 ____exports.Flags = __TS__Class()
 local Flags = ____exports.Flags
 Flags.name = "Flags"
@@ -641,6 +649,21 @@ function CPU.prototype.step(self)
         if ____cond12 then
             do
                 self.pc = self:pop()
+            end
+            break
+        end
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.PLA_IMP
+        if ____cond12 then
+            do
+                self.a = self:pop()
+                self:set_NZ_status(self.a)
+            end
+            break
+        end
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.PHA_IMP
+        if ____cond12 then
+            do
+                self:push(self.a)
             end
             break
         end

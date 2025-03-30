@@ -42,6 +42,7 @@ script.on_event(defines.events.on_player_created, () => {
 })
 
 let CODE = [
+
 ]
 
 let CODE2 = [
@@ -59,7 +60,6 @@ let CODE2 = [
     0xB8,
     0xFF,
     0x4C, 0x0, 0x0,
-
 ]
 let cpu = new CPU(CODE2);
 
