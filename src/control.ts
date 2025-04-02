@@ -42,27 +42,21 @@ script.on_event(defines.events.on_player_created, () => {
 })
 
 let CODE = [
-
+    INST.LDA_ZP, 0xF1,
+    INST.ADC_IM, 0x40,
+    INST.STA_ZP, 0xF1,
+    INST.BVS, 0x0, 0x0,
+    INST.CLD,
+    INST.CLV,
+    INST.LDA_ZPX, 0xF2,
+    INST.ADC_IM, 0x1,
+    INST.STA_ZP, 0xF2,
+    INST.CLD,
+    INST.CLV,
+    INST.JMP_ABS, 0x0, 0x0,
 ]
 
-let CODE2 = [
-    0xA5, 0xF1,
-    0x69, 0x40,
-    0x85, 0xF1,
-    0xFF,
-    0x50, 0x0, 0x0,
-    0xD8,
-    0xB8,
-    0xA5, 0xF2,
-    0x69, 0x1,
-    0x85, 0xF2,
-    0xD8,
-    0xB8,
-    0xFF,
-    0x4C, 0x0, 0x0,
-]
-let cpu = new CPU(CODE2);
-
+let cpu = new CPU(CODE);
 script.on_event(defines.events.on_tick, () => {
     cpu.step()
     //Object.keys(INST).forEach(element => {

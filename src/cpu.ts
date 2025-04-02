@@ -33,6 +33,10 @@ export enum INST {
     ADC_ABSX = 0x7D,
     ADC_ABSY = 0x79,
 
+    SBC_IM = 0xE9,
+    SBC_ZP = 0xE5,
+    SBC_ZPX = 0xF5,
+
     BCC = 0x90,
     BCS = 0xB0,
     BEQ = 0xF0,
@@ -299,15 +303,13 @@ export class CPU {
             } break;
 
             case INST.ADC_IM: {
-                let value = this.fetch_byte()
-                let carry = this.flags.C ? 1 : 0
-                let sum = (this.a + value + carry) & 0xFFFF
-                this.flags.C = sum > 0xFF
-                let overflow = (ByteArray.read_byte(this.a ^ sum, 0) & ByteArray.read_byte(value ^ sum, 0)) != 0
-                //this.flags.V = overflow
-                this.flags.V = sum > 255
-                this.a = sum & 0xFF
-                this.set_NZ_status(this.a)
+                let value = this.fetch_byte();
+                let carry = this.flags.C ? 1 : 0;
+                let sum = this.a + value + carry;
+                this.flags.C = sum > 0xFF;
+                this.flags.V = CPU.overflowFlag(this.a, value, sum & 0xFF);
+                this.a = sum & 0xFF;
+                this.set_NZ_status(this.a);
             } break;
 
             case INST.BCC: {
@@ -358,17 +360,41 @@ export class CPU {
                 }
             } break;
 
-            case INST.ADC_ZPX: {
+            case INST.SBC_IM: {
                 let value = this.fetch_byte()
-                value = (this.read_byte(value) + this.x)
-                let carry = this.flags.C ? 1 : 0
-                let sum = (this.a + value + carry) & 0xFFFF
+                let carry = this.flags.C ? 0 : 1
+                let diff = (this.a - value - carry) & 0xFFFF
+                this.flags.C = this.a >= (value + carry)
+                this.flags.V = CPU.overflowFlag(this.a, -value, diff & 0xFF)
+            } break;
 
-                this.flags.C = sum > 0xFF
-                let overflow = (ByteArray.read_byte(this.a ^ sum, 0) & ByteArray.read_byte(value ^ sum, 0)) != 0
-                this.flags.V = overflow
-                this.a = sum & 0xFF
-                this.set_NZ_status(this.a)
+            case INST.SBC_ZP: {
+                let addr_zp = this.fetch_byte()
+                let value = this.read_byte(addr_zp)
+                let carry = this.flags.C ? 0 : 1
+                let diff = (this.a - value - carry) & 0xFFFF
+                this.flags.C = this.a >= (value + carry)
+                this.flags.V = CPU.overflowFlag(this.a, -value, diff & 0xFF)
+            } break;
+
+            case INST.SBC_ZPX: {
+                let addr_zp = this.fetch_byte()
+                let value = this.read_byte(addr_zp) + this.x
+                let carry = this.flags.C ? 0 : 1
+                let diff = (this.a - value - carry) & 0xFFFF
+                this.flags.C = this.a >= (value + carry)
+                this.flags.V = CPU.overflowFlag(this.a, -value, diff & 0xFF)
+            } break;
+
+            case INST.ADC_ZPX: {
+                let value = this.fetch_byte();
+                value = this.read_byte((value + this.x) & 0xFF);
+                let carry = this.flags.C ? 1 : 0;
+                let sum = this.a + value + carry;
+                this.flags.C = sum > 0xFF;
+                this.flags.V = CPU.overflowFlag(this.a, value, sum & 0xFF);
+                this.a = sum & 0xFF;
+                this.set_NZ_status(this.a);
             } break;
 
             case INST.ADC_IM: {
@@ -398,8 +424,6 @@ export class CPU {
             } break;
 
             case INST.CLD: {
-                this.flags.B = false
-                this.flags.C = false
                 this.flags.D = false
             } break;
 
@@ -461,6 +485,22 @@ export class CPU {
     fetch_word(): number {
         this.pc += 2
         return (this.memory.get(this.pc - 2) | this.memory.get(this.pc - 1)) & 0xFFFF
+    }
+
+    static overflowFlag(a: number, b: number, result: number): boolean {
+        const aSign = (a >> 7) & 1;
+        const bSign = (b >> 7) & 1;
+        const rSign = (result >> 7) & 1;
+
+        return (aSign === bSign) && (aSign !== rSign);
+    }
+
+    static carryFlag(a: number, b: number, operation: 'add' | 'sub'): boolean {
+        if (operation === 'add') {
+            return (a + b) > 0xFF;
+        } else {
+            return a >= (b + 1);
+        }
     }
 
     static INST_TABLE: {}

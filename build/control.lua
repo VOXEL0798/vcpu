@@ -3,6 +3,7 @@ local __TS__New = ____lualib.__TS__New
 local ____exports = {}
 local ____cpu = require("cpu")
 local CPU = ____cpu.CPU
+local INST = ____cpu.INST
 script.on_event(
     defines.events.on_player_created,
     function()
@@ -22,34 +23,31 @@ script.on_event(
         frame.add({type = "checkbox", name = "cpu-execute", state = false})
     end
 )
-local CODE = {}
-local CODE2 = {
-    165,
+local CODE = {
+    INST.LDA_ZP,
     241,
-    105,
+    INST.ADC_IM,
     64,
-    133,
+    INST.STA_ZP,
     241,
-    255,
-    80,
+    INST.BVS,
     0,
     0,
-    216,
-    184,
-    165,
+    INST.CLD,
+    INST.CLV,
+    INST.LDA_ZPX,
     242,
-    105,
+    INST.ADC_IM,
     1,
-    133,
+    INST.STA_ZP,
     242,
-    216,
-    184,
-    255,
-    76,
+    INST.CLD,
+    INST.CLV,
+    INST.JMP_ABS,
     0,
     0
 }
-local cpu = __TS__New(CPU, CODE2)
+local cpu = __TS__New(CPU, CODE)
 script.on_event(
     defines.events.on_tick,
     function()

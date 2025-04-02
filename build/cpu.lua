@@ -59,6 +59,12 @@ ____exports.INST.ADC_ABSX = 125
 ____exports.INST[____exports.INST.ADC_ABSX] = "ADC_ABSX"
 ____exports.INST.ADC_ABSY = 121
 ____exports.INST[____exports.INST.ADC_ABSY] = "ADC_ABSY"
+____exports.INST.SBC_IM = 233
+____exports.INST[____exports.INST.SBC_IM] = "SBC_IM"
+____exports.INST.SBC_ZP = 229
+____exports.INST[____exports.INST.SBC_ZP] = "SBC_ZP"
+____exports.INST.SBC_ZPX = 245
+____exports.INST[____exports.INST.SBC_ZPX] = "SBC_ZPX"
 ____exports.INST.BCC = 144
 ____exports.INST[____exports.INST.BCC] = "BCC"
 ____exports.INST.BCS = 176
@@ -434,19 +440,13 @@ function CPU.prototype.step(self)
             do
                 local value = self:fetch_byte()
                 local carry = self.flags.C and 1 or 0
-                local sum = bit32.band(self.a + value + carry, 65535)
+                local sum = self.a + value + carry
                 self.flags.C = sum > 255
-                local overflow = bit32.band(
-                    ByteArray:read_byte(
-                        bit32.bxor(self.a, sum),
-                        0
-                    ),
-                    ByteArray:read_byte(
-                        bit32.bxor(value, sum),
-                        0
-                    )
-                ) ~= 0
-                self.flags.V = sum > 255
+                self.flags.V = ____exports.CPU:overflowFlag(
+                    self.a,
+                    value,
+                    bit32.band(sum, 255)
+                )
                 self.a = bit32.band(sum, 255)
                 self:set_NZ_status(self.a)
             end
@@ -524,25 +524,66 @@ function CPU.prototype.step(self)
             end
             break
         end
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.SBC_IM
+        if ____cond12 then
+            do
+                local value = self:fetch_byte()
+                local carry = self.flags.C and 0 or 1
+                local diff = bit32.band(self.a - value - carry, 65535)
+                self.flags.C = self.a >= value + carry
+                self.flags.V = ____exports.CPU:overflowFlag(
+                    self.a,
+                    -value,
+                    bit32.band(diff, 255)
+                )
+            end
+            break
+        end
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.SBC_ZP
+        if ____cond12 then
+            do
+                local addr_zp = self:fetch_byte()
+                local value = self:read_byte(addr_zp)
+                local carry = self.flags.C and 0 or 1
+                local diff = bit32.band(self.a - value - carry, 65535)
+                self.flags.C = self.a >= value + carry
+                self.flags.V = ____exports.CPU:overflowFlag(
+                    self.a,
+                    -value,
+                    bit32.band(diff, 255)
+                )
+            end
+            break
+        end
+        ____cond12 = ____cond12 or ____switch12 == ____exports.INST.SBC_ZPX
+        if ____cond12 then
+            do
+                local addr_zp = self:fetch_byte()
+                local value = self:read_byte(addr_zp) + self.x
+                local carry = self.flags.C and 0 or 1
+                local diff = bit32.band(self.a - value - carry, 65535)
+                self.flags.C = self.a >= value + carry
+                self.flags.V = ____exports.CPU:overflowFlag(
+                    self.a,
+                    -value,
+                    bit32.band(diff, 255)
+                )
+            end
+            break
+        end
         ____cond12 = ____cond12 or ____switch12 == ____exports.INST.ADC_ZPX
         if ____cond12 then
             do
                 local value = self:fetch_byte()
-                value = self:read_byte(value) + self.x
+                value = self:read_byte(bit32.band(value + self.x, 255))
                 local carry = self.flags.C and 1 or 0
-                local sum = bit32.band(self.a + value + carry, 65535)
+                local sum = self.a + value + carry
                 self.flags.C = sum > 255
-                local overflow = bit32.band(
-                    ByteArray:read_byte(
-                        bit32.bxor(self.a, sum),
-                        0
-                    ),
-                    ByteArray:read_byte(
-                        bit32.bxor(value, sum),
-                        0
-                    )
-                ) ~= 0
-                self.flags.V = overflow
+                self.flags.V = ____exports.CPU:overflowFlag(
+                    self.a,
+                    value,
+                    bit32.band(sum, 255)
+                )
                 self.a = bit32.band(sum, 255)
                 self:set_NZ_status(self.a)
             end
@@ -597,8 +638,6 @@ function CPU.prototype.step(self)
         ____cond12 = ____cond12 or ____switch12 == ____exports.INST.CLD
         if ____cond12 then
             do
-                self.flags.B = false
-                self.flags.C = false
                 self.flags.D = false
             end
             break
@@ -697,5 +736,27 @@ function CPU.prototype.fetch_word(self)
         ),
         65535
     )
+end
+function CPU.overflowFlag(self, a, b, result)
+    local aSign = bit32.band(
+        bit32.arshift(a, 7),
+        1
+    )
+    local bSign = bit32.band(
+        bit32.arshift(b, 7),
+        1
+    )
+    local rSign = bit32.band(
+        bit32.arshift(result, 7),
+        1
+    )
+    return aSign == bSign and aSign ~= rSign
+end
+function CPU.carryFlag(self, a, b, operation)
+    if operation == "add" then
+        return a + b > 255
+    else
+        return a >= b + 1
+    end
 end
 return ____exports
